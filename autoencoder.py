@@ -5,7 +5,13 @@ import mwclient
 import mwclient.listing
 import mwclient.image
 import tqdm
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
+
+import torch
+import torchvision
+
+from models import SimpleConvolutionalAE
 
 
 def download_image(image: mwclient.image.Image, target_path: Path):
@@ -61,12 +67,86 @@ def download(args: argparse.Namespace):
         print(f"{len(images_discovered)} images discovered")
 
 
+def filter(args: argparse.Namespace):
+    filter_patterns = ["flag-map", "map-flag", "flag_map", "map_flag", "silhouette", "nuvola", "icon"]
+
+    dataset_dir = args.working_dir / f"dataset_{args.dataset}"
+    svg_dir = dataset_dir / "svg"
+    filtered_dir = dataset_dir / "filtered"
+
+    filtered_dir.mkdir(exist_ok=True)
+
+    for path in svg_dir.rglob("*"):
+        if path.is_dir():
+            continue
+        if not path.name.lower().endswith(".svg") or any(fp in path.name.lower() for fp in filter_patterns):
+            path.rename(filtered_dir / path.name)
+            print(f"Filtered: {path}")
+        else:
+            path.rename(svg_dir / path.name)
+
+
+def prepare(args: argparse.Namespace):
+    dataset_dir = args.working_dir / f"dataset_{args.dataset}"
+    svg_dir = dataset_dir / "svg"
+    png_dir = dataset_dir / "png"
+
+    png_dir.mkdir(exist_ok=True)
+    svg_files = list(svg_dir.glob("*.svg"))
+    for i, svg_path in tqdm.tqdm(enumerate(svg_files), total=len(svg_files)):
+        png_path = png_dir / f"{svg_path.stem}.png"
+        if not png_path.exists():
+            subprocess.run(["inkscape", f"--export-width={args.img_size}", f"--export-filename={png_path}", str(svg_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def load_and_prepare_image(file_path: Path):
+    pass
+
+
+def train(args: argparse.Namespace):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=32)
+    model.to(device)
+    print(model)
+
+    image_transforms = torchvision.transforms.Compose([
+        torchvision.transforms.Resize((args.img_size, args.img_size)),  # TODO: Only resize the canvas
+        torchvision.transforms.ToTensor()
+    ])
+
+    train_data_dir = args.working_dir / f"dataset_{args.dataset}" / "png"
+    train_dataset = torchvision.datasets.ImageFolder(root=train_data_dir, transform=image_transforms)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=10, num_workers=1, shuffle=True)
+
+    reconstruction_loss_function = torch.nn.L1Loss(reduction='sum')
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
+    for batch_idx, (data, target) in enumerate(train_loader):
+        output = model.forward(data)
+        loss = reconstruction_loss_function(output, data)
+        print(f"Batch #{batch_idx}: Loss = {loss.item()}")
+
+        loss.backward()
+        optimizer.step()
+
+        if batch_idx == 100:
+            break
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", help="Action to perform (values: download)")
+    parser.add_argument("action", help="Action to perform (values: download, prepare)")
     parser.add_argument("--working_dir", type=Path, help="Working directory")
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
+    parser.add_argument("--img_size", type=int, default=256, help="The size (width) of the training images")
     args = parser.parse_args()
 
     if args.action == "download":
         download(args)
+    elif args.action == "filter":
+        filter(args)
+    elif args.action == "prepare":
+        prepare(args)
+    elif args.action == "train":
+        train(args)
