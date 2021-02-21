@@ -10,7 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import torch
 import torchvision
-
+import torch.utils.tensorboard
+import torch.utils.data
 from models import SimpleConvolutionalAE
 
 
@@ -89,7 +90,7 @@ def filter(args: argparse.Namespace):
 def prepare(args: argparse.Namespace):
     dataset_dir = args.working_dir / f"dataset_{args.dataset}"
     svg_dir = dataset_dir / "svg"
-    png_dir = dataset_dir / "png"
+    png_dir = dataset_dir / "png" / "dummy_label"
 
     png_dir.mkdir(exist_ok=True)
     svg_files = list(svg_dir.glob("*.svg"))
@@ -99,11 +100,10 @@ def prepare(args: argparse.Namespace):
             subprocess.run(["inkscape", f"--export-width={args.img_size}", f"--export-filename={png_path}", str(svg_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def load_and_prepare_image(file_path: Path):
-    pass
-
-
 def train(args: argparse.Namespace):
+    train_dir = args.working_dir / "train"
+    logs_dir = args.working_dir / "train" / "summary"
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=32)
@@ -119,19 +119,27 @@ def train(args: argparse.Namespace):
     train_dataset = torchvision.datasets.ImageFolder(root=train_data_dir, transform=image_transforms)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=10, num_workers=1, shuffle=True)
 
-    reconstruction_loss_function = torch.nn.L1Loss(reduction='sum')
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    reconstruction_loss_function = torch.nn.L1Loss(reduction='mean')
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5, betas=(0.9, 0.999), eps=1e-8)
 
-    for batch_idx, (data, target) in enumerate(train_loader):
-        output = model.forward(data)
-        loss = reconstruction_loss_function(output, data)
-        print(f"Batch #{batch_idx}: Loss = {loss.item()}")
+    with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
+        for step, (data, target) in enumerate(train_loader):
+            output = model.forward(data)
+            loss = reconstruction_loss_function(output, data)
 
-        loss.backward()
-        optimizer.step()
+            print(f"Step #{step}: Loss = {loss.item()}")
+            summary_writer.add_scalar("Loss", loss, step)
+            summary_writer.add_scalar("Batch Size", data.shape[0], step)
 
-        if batch_idx == 100:
-            break
+            print("Logging images ...")
+            if step % 100 == 0:
+                batch_sources_image_grid = torchvision.utils.make_grid(data)
+                summary_writer.add_image("Recent Batch Sources", batch_sources_image_grid, step)
+                batch_reconstructions_image_grid = torchvision.utils.make_grid(output)
+                summary_writer.add_image("Recent Batch Reconstructions", batch_reconstructions_image_grid, step)
+
+            loss.backward()
+            optimizer.step()
 
 
 if __name__ == "__main__":
