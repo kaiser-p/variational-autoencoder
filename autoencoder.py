@@ -16,9 +16,9 @@ def train(args: argparse.Namespace):
     train_dir = args.working_dir / "train"
     logs_dir = args.working_dir / "train" / "summary"
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=1)
+    model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=args.bottleneck_dim)
     model.to(device)
     print(model)
 
@@ -31,7 +31,7 @@ def train(args: argparse.Namespace):
     train_dataset = torchvision.datasets.ImageFolder(root=train_data_dir, transform=image_transforms)
 
     reconstruction_loss_function = torch.nn.L1Loss(reduction='mean')
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, betas=(0.9, 0.999), eps=1e-8)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.999), eps=1e-8)
 
     print("Starting training ...")
     with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
@@ -76,6 +76,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
     parser.add_argument("--img_size", type=int, default=128, help="The size (width) of the training images")
     parser.add_argument("--num_epochs", type=int, default=10, help="The number of epochs to train")
+    parser.add_argument("--bottleneck_dim", type=int, help="Smalles hidden dimension of the autoencoder")
+    parser.add_argument("--learning_rate", type=float, default=1e-2, help="Smalles hidden dimension of the autoencoder")
     parser.add_argument("--batch_size", type=int, default=100, help="Batch Size")
     parser.add_argument("--image_summary_interval", type=int, default=100, help="Write image summaries everay N steps")
     args = parser.parse_args()
