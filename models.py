@@ -9,7 +9,7 @@ class ConvolutionAwareVariationalAE(nn.Module):
         return x
 
 
-class SimpleConvolutionalAE(nn.Module):
+class SimpleConvolutionalAE_orig(nn.Module):
     def __init__(self, img_dim: int, bottleneck_dim: int, verbose: bool = False):
         super().__init__()
         self.img_dim = img_dim  # D
@@ -136,4 +136,34 @@ class SimpleConvolutionalAE(nn.Module):
         x = self.relu(self.decoder_layer1_conv(x))
         if self.verbose:
             print("decoder_layer1_conv:", x.shape)
+        return x
+
+
+
+class SimpleConvolutionalAE(nn.Module):
+    def __init__(self, img_dim: int, bottleneck_dim: int, verbose: bool = False):
+        super().__init__()
+        self.img_dim = img_dim  # D
+        self.bottleneck_dim = bottleneck_dim  # N
+        self.verbose = verbose
+
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+        self.encoder_layer1_conv = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=1, stride=1, padding=0)  # Output: [B, C=16, D, D]
+        self.encoder_layer1_pool = nn.AvgPool2d(kernel_size=2, stride=2)  # Output: [B, C=16, D/2, D/2]
+
+        #self.encoder_layer2_conv = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)  # Output: [B, C=32, D/2, D/2]
+        #self.encoder_layer2_pool = nn.MaxPool2d(kernel_size=2, stride=2)  # Output: [B, C=32, D/4, D/4]
+
+        #self.decoder_layer2_conv = nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=2, stride=2, padding=0)  # Output: [B, C=16, D/2, D/2]
+        self.decoder_layer1_conv = nn.ConvTranspose2d(in_channels=3, out_channels=3, kernel_size=2, stride=2, padding=0)  # Output: [B, C=3, D, D]
+
+    def forward(self, x):
+        x = self.sigmoid(self.encoder_layer1_conv(x))
+        #x = self.encoder_layer1_pool(x)
+        #x = self.relu(self.encoder_layer2_conv(x))
+        #x = self.encoder_layer2_pool(x)
+        #x = self.relu(self.decoder_layer2_conv(x))
+        #x = self.relu(self.decoder_layer1_conv(x))
         return x

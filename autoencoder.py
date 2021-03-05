@@ -117,29 +117,43 @@ def train(args: argparse.Namespace):
 
     train_data_dir = args.working_dir / f"dataset_{args.dataset}" / "png"
     train_dataset = torchvision.datasets.ImageFolder(root=train_data_dir, transform=image_transforms)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=10, num_workers=1, shuffle=True)
 
     reconstruction_loss_function = torch.nn.L1Loss(reduction='mean')
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5, betas=(0.9, 0.999), eps=1e-8)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, betas=(0.9, 0.999), eps=1e-8)
 
     with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
-        for step, (data, target) in enumerate(train_loader):
-            output = model.forward(data)
-            loss = reconstruction_loss_function(output, data)
+        global_step = 0
+        for epoch in range(args.num_epochs):
+            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, num_workers=1, shuffle=True)
+            for local_step, (data, target) in enumerate(train_loader):
+                global_step += 1
 
-            print(f"Step #{step}: Loss = {loss.item()}")
-            summary_writer.add_scalar("Loss", loss, step)
-            summary_writer.add_scalar("Batch Size", data.shape[0], step)
+                optimizer.zero_grad()
+                output = model.forward(data)
+                loss = reconstruction_loss_function(output, data)
 
-            print("Logging images ...")
-            if step % 100 == 0:
-                batch_sources_image_grid = torchvision.utils.make_grid(data)
-                summary_writer.add_image("Recent Batch Sources", batch_sources_image_grid, step)
-                batch_reconstructions_image_grid = torchvision.utils.make_grid(output)
-                summary_writer.add_image("Recent Batch Reconstructions", batch_reconstructions_image_grid, step)
+                print(f"Epoch #{epoch}, Global Step #{global_step}, Local Step #{local_step}: Loss = {loss.item()}")
+                summary_writer.add_scalar("Loss/Reconstruction Loss", loss, global_step)
+                summary_writer.add_scalar("Batch Size", data.shape[0], global_step)
+                summary_writer.add_scalar("Epoch", epoch, global_step)
 
-            loss.backward()
-            optimizer.step()
+                summary_writer.add_scalar("Source Batch Statistics/Max Value", torch.max(data), global_step)
+                summary_writer.add_scalar("Source Batch Statistics/Avg Value", torch.mean(data), global_step)
+                summary_writer.add_scalar("Source Batch Statistics/Std Dev", torch.std(data), global_step)
+
+                summary_writer.add_scalar("Output Batch Statistics/Max Value", torch.max(output), global_step)
+                summary_writer.add_scalar("Output Batch Statistics/Avg Value", torch.mean(output), global_step)
+                summary_writer.add_scalar("Output Batch Statistics/Std Dev", torch.std(output), global_step)
+
+                if global_step % 10 == 0:
+                    print("Logging images ...")
+                    batch_sources_image_grid = torchvision.utils.make_grid(data)
+                    summary_writer.add_image("Recent Batch Sources", batch_sources_image_grid, global_step)
+                    batch_reconstructions_image_grid = torchvision.utils.make_grid(output)
+                    summary_writer.add_image("Recent Batch Reconstructions", batch_reconstructions_image_grid, global_step)
+
+                loss.backward()
+                optimizer.step()
 
 
 if __name__ == "__main__":
@@ -148,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument("--working_dir", type=Path, help="Working directory")
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
     parser.add_argument("--img_size", type=int, default=256, help="The size (width) of the training images")
+    parser.add_argument("--num_epochs", type=int, default=10, help="The number of epochs to train")
     args = parser.parse_args()
 
     if args.action == "download":
