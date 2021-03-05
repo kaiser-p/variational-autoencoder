@@ -18,7 +18,7 @@ def train(args: argparse.Namespace):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=32)
+    model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=1)
     model.to(device)
     print(model)
 
@@ -27,7 +27,7 @@ def train(args: argparse.Namespace):
         torchvision.transforms.ToTensor()
     ])
 
-    train_data_dir = args.working_dir / f"dataset_{args.dataset}" / "png"
+    train_data_dir = args.working_dir / f"dataset_{args.dataset}"
     train_dataset = torchvision.datasets.ImageFolder(root=train_data_dir, transform=image_transforms)
 
     reconstruction_loss_function = torch.nn.L1Loss(reduction='mean')
@@ -36,7 +36,7 @@ def train(args: argparse.Namespace):
     with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
         global_step = 0
         for epoch in range(args.num_epochs):
-            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, num_workers=1, shuffle=True)
+            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, num_workers=0, shuffle=True)
             for local_step, (data, target) in enumerate(train_loader):
                 global_step += 1
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("action", help="Action to perform (values: download, prepare)")
     parser.add_argument("--working_dir", type=Path, help="Working directory")
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
-    parser.add_argument("--img_size", type=int, default=256, help="The size (width) of the training images")
+    parser.add_argument("--img_size", type=int, default=128, help="The size (width) of the training images")
     parser.add_argument("--num_epochs", type=int, default=10, help="The number of epochs to train")
     args = parser.parse_args()
 

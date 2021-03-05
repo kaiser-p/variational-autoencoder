@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("action", help="Action to perform (values: download, prepare)")
     parser.add_argument("--working_dir", type=Path, help="Working directory")
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
-    parser.add_argument("--img_size", type=int, default=100, help="The size (width) of the training images")
+    parser.add_argument("--img_size", type=int, default=128, help="The size (width) of the training images")
     parser.add_argument("--num_images", type=int, default=100000, help="The size (width) of the training images")
     args = parser.parse_args()
 
