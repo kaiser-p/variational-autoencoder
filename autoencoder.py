@@ -1,9 +1,8 @@
+from __future__ import annotations
+
 import argparse
 from typing import Tuple
 from pathlib import Path
-import mwclient
-import mwclient.listing
-import mwclient.image
 import tqdm
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -14,6 +13,12 @@ import torch.utils.tensorboard
 import torch.utils.data
 from models import SimpleConvolutionalAE
 
+try:
+    import mwclient
+    import mwclient.listing
+    import mwclient.image
+except ImportError:
+    pass
 
 def download_image(image: mwclient.image.Image, target_path: Path):
     if target_path.exists():
