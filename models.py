@@ -148,23 +148,24 @@ class SimpleConvolutionalAE(nn.Module):
         self.verbose = verbose
 
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
-        self.encoder_layer_conv_1 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)  # Output: [B, C=16, D, D]
+        self.encoder_layer_conv_1 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)  # Output: [B, C=3, D, D]
         self.encoder_layer_pool_1 = nn.MaxPool2d(kernel_size=2, stride=2)  # Output: [B, C=16, D/2, D/2]
 
-        self.encoder_layer_conv_2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)  # Output: [B, C=32, D/2, D/2]
+        self.encoder_layer_conv_2 = nn.Conv2d(in_channels=3, out_channels=3, kernel_size=3, stride=1, padding=1)  # Output:
         self.encoder_layer_pool_2 = nn.MaxPool2d(kernel_size=2, stride=2)  # Output: [B, C=32, D/4, D/4]
 
         hidden_dim = 3*(img_dim//4)*(img_dim//4)
-        self.encoder_layer_dense_1 = nn.Linear(in_features=hidden_dim, out_features=hidden_dim//16)  # Output: [B, 64 * D/32 * D/32]
-        self.encoder_layer_dense_2 = nn.Linear(in_features=hidden_dim//16, out_features=bottleneck_dim)  # Output: [B, 32 * D/32 * D/32]
+        self.encoder_layer_dense_1 = nn.Linear(in_features=hidden_dim, out_features=hidden_dim//16)  # Output:
+        self.encoder_layer_dense_2 = nn.Linear(in_features=hidden_dim//16, out_features=bottleneck_dim)  # Output:
 
         self.latent_space_manipulation = ConvolutionAwareVariationalAE()
 
-        self.decoder_layer_dense_2 = nn.Linear(in_features=bottleneck_dim, out_features=hidden_dim//16)  # Output: [B, 64 * D/32 * D/32]
-        self.decoder_layer_dense_1 = nn.Linear(in_features=hidden_dim//16, out_features=hidden_dim)  # Output: [B, 128 * D/32 * D/32]
+        self.decoder_layer_dense_2 = nn.Linear(in_features=bottleneck_dim, out_features=hidden_dim//16)  # Output:
+        self.decoder_layer_dense_1 = nn.Linear(in_features=hidden_dim//16, out_features=hidden_dim)  # Output:
 
-        self.decoder_layer_tconv_2 = nn.ConvTranspose2d(in_channels=3, out_channels=3, kernel_size=2, stride=2, padding=0)  # Output: [B, C=16, D/2, D/2]
+        self.decoder_layer_tconv_2 = nn.ConvTranspose2d(in_channels=3, out_channels=3, kernel_size=2, stride=2, padding=0)  # Output:
         self.decoder_layer_tconv_1 = nn.ConvTranspose2d(in_channels=3, out_channels=3, kernel_size=2, stride=2, padding=0)  # Output: [B, C=3, D, D]
 
     def forward(self, x):
@@ -186,5 +187,5 @@ class SimpleConvolutionalAE(nn.Module):
         x = x.view(B, C, D_w, D_h)  # [B, C, D_w, D_h]
 
         x = self.relu(self.decoder_layer_tconv_2(x))
-        x = self.relu(self.decoder_layer_tconv_1(x))
+        x = self.sigmoid(self.decoder_layer_tconv_1(x))
         return x
