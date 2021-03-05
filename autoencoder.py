@@ -47,14 +47,15 @@ def train(args: argparse.Namespace):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.999), eps=1e-8)
 
     print("Starting training ...")
-    with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
+    with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir, flush_secs=15) as summary_writer:
+        global_step = 0
         for epoch in range(args.num_epochs):
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle=True)
             for local_step, (data, target) in enumerate(train_loader):
                 global_step += 1
 
                 optimizer.zero_grad()
-                output = model.forward(data)
+                output, code = model.forward(data)
                 loss = reconstruction_loss_function(output, data)
 
                 print(f"Epoch #{epoch}, Global Step #{global_step}, Local Step #{local_step}: Loss = {loss.item()}")
@@ -84,6 +85,9 @@ def train(args: argparse.Namespace):
                     checkpoint_path = checkpoints_dir / f"checkpoint_{global_step}.pt"
                     torch.save(model.state_dict(), checkpoint_path)
 
+                    #batch_code_image_grid = torchvision.utils.make_grid(code)
+                    #summary_writer.add_image("Recent Code representations", batch_code_image_grid, global_step)
+
                 loss.backward()
                 optimizer.step()
 
@@ -97,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_epochs", type=int, default=10, help="The number of epochs to train")
     parser.add_argument("--bottleneck_dim", type=int, help="Smalles hidden dimension of the autoencoder")
     parser.add_argument("--learning_rate", type=float, default=1e-2, help="Smalles hidden dimension of the autoencoder")
-    parser.add_argument("--batch_size", type=int, default=100, help="Batch Size")
+    parser.add_argument("--batch_size", type=int, default=50, help="Batch Size")
     parser.add_argument("--image_summary_interval", type=int, default=10, help="Write image summaries every N steps")
     parser.add_argument("--model_save_interval", type=int, default=1000, help="Save the model weights every N steps")
     parser.add_argument("--continue_training", action="store_true", help="Continue training with the most recent checkpoint")
