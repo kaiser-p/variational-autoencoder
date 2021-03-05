@@ -100,7 +100,6 @@ if __name__ == "__main__":
     parser.add_argument("--working_dir", type=Path, help="Working directory")
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
     parser.add_argument("--img_size", type=int, default=256, help="The size (width) of the training images")
-    parser.add_argument("--num_epochs", type=int, default=10, help="The number of epochs to train")
     args = parser.parse_args()
 
     if args.action == "download":
