@@ -33,10 +33,11 @@ def train(args: argparse.Namespace):
     reconstruction_loss_function = torch.nn.L1Loss(reduction='mean')
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, betas=(0.9, 0.999), eps=1e-8)
 
+    print("Starting training ...")
     with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
         global_step = 0
         for epoch in range(args.num_epochs):
-            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, num_workers=0, shuffle=True)
+            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle=True)
             for local_step, (data, target) in enumerate(train_loader):
                 global_step += 1
 
@@ -57,7 +58,7 @@ def train(args: argparse.Namespace):
                 summary_writer.add_scalar("Output Batch Statistics/Avg Value", torch.mean(output), global_step)
                 summary_writer.add_scalar("Output Batch Statistics/Std Dev", torch.std(output), global_step)
 
-                if global_step % 10 == 0:
+                if global_step % args.image_summary_interval == 0:
                     print("Logging images ...")
                     batch_sources_image_grid = torchvision.utils.make_grid(data)
                     summary_writer.add_image("Recent Batch Sources", batch_sources_image_grid, global_step)
@@ -75,6 +76,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="The dataset to work on (values: test, flags, coats_of_arms)")
     parser.add_argument("--img_size", type=int, default=128, help="The size (width) of the training images")
     parser.add_argument("--num_epochs", type=int, default=10, help="The number of epochs to train")
+    parser.add_argument("--batch_size", type=int, default=100, help="Batch Size")
+    parser.add_argument("--image_summary_interval", type=int, default=100, help="Write image summaries everay N steps")
     args = parser.parse_args()
 
     if args.action == "train":
