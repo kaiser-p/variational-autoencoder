@@ -16,11 +16,24 @@ def train(args: argparse.Namespace):
     train_dir = args.working_dir / "train"
     logs_dir = args.working_dir / "train" / "summary"
 
+    checkpoints_dir = args.working_dir / "train" / "checkpoints"
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+
     device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=args.bottleneck_dim)
     model.to(device)
     print(model)
+
+    global_step = 0
+    if args.continue_training:
+        checkpoints = sorted(checkpoints_dir.glob("checkpoint_*.pt"), key=lambda p: int(p.stem.rsplit("_", 1)[1]))
+        if checkpoints:
+            print("Loading most recent checkpoint:", checkpoints[-1])
+            model.load_state_dict(torch.load(checkpoints[-1]))
+            global_step = int(checkpoints[-1].stem.rsplit("_", 1)[1])
+            print("Setting global step to:", global_step)
+
 
     image_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize((args.img_size, args.img_size)),  # TODO: Only resize the canvas
@@ -35,7 +48,6 @@ def train(args: argparse.Namespace):
 
     print("Starting training ...")
     with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir) as summary_writer:
-        global_step = 0
         for epoch in range(args.num_epochs):
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle=True)
             for local_step, (data, target) in enumerate(train_loader):
@@ -50,10 +62,12 @@ def train(args: argparse.Namespace):
                 summary_writer.add_scalar("Batch Size", data.shape[0], global_step)
                 summary_writer.add_scalar("Epoch", epoch, global_step)
 
+                summary_writer.add_scalar("Source Batch Statistics/Min Value", torch.min(data), global_step)
                 summary_writer.add_scalar("Source Batch Statistics/Max Value", torch.max(data), global_step)
                 summary_writer.add_scalar("Source Batch Statistics/Avg Value", torch.mean(data), global_step)
                 summary_writer.add_scalar("Source Batch Statistics/Std Dev", torch.std(data), global_step)
 
+                summary_writer.add_scalar("Output Batch Statistics/Min Value", torch.min(output), global_step)
                 summary_writer.add_scalar("Output Batch Statistics/Max Value", torch.max(output), global_step)
                 summary_writer.add_scalar("Output Batch Statistics/Avg Value", torch.mean(output), global_step)
                 summary_writer.add_scalar("Output Batch Statistics/Std Dev", torch.std(output), global_step)
@@ -64,6 +78,11 @@ def train(args: argparse.Namespace):
                     summary_writer.add_image("Recent Batch Sources", batch_sources_image_grid, global_step)
                     batch_reconstructions_image_grid = torchvision.utils.make_grid(output)
                     summary_writer.add_image("Recent Batch Reconstructions", batch_reconstructions_image_grid, global_step)
+
+                if global_step % args.model_save_interval == 0:
+                    print("Saving model weights ...")
+                    checkpoint_path = checkpoints_dir / f"checkpoint_{global_step}.pt"
+                    torch.save(model.state_dict(), checkpoint_path)
 
                 loss.backward()
                 optimizer.step()
@@ -79,7 +98,9 @@ if __name__ == "__main__":
     parser.add_argument("--bottleneck_dim", type=int, help="Smalles hidden dimension of the autoencoder")
     parser.add_argument("--learning_rate", type=float, default=1e-2, help="Smalles hidden dimension of the autoencoder")
     parser.add_argument("--batch_size", type=int, default=100, help="Batch Size")
-    parser.add_argument("--image_summary_interval", type=int, default=100, help="Write image summaries everay N steps")
+    parser.add_argument("--image_summary_interval", type=int, default=10, help="Write image summaries every N steps")
+    parser.add_argument("--model_save_interval", type=int, default=1000, help="Save the model weights every N steps")
+    parser.add_argument("--continue_training", action="store_true", help="Continue training with the most recent checkpoint")
     args = parser.parse_args()
 
     if args.action == "train":
