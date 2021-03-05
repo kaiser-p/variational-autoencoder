@@ -91,6 +91,10 @@ def train(args: argparse.Namespace):
                 loss.backward()
                 optimizer.step()
 
+                for tag, parm in model.named_parameters():
+                    if parm.grad is not None:
+                        summary_writer.add_histogram(f"Model Gradients/{tag}", parm.grad.data.cpu().numpy(), global_step)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
