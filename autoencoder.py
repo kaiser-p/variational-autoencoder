@@ -9,7 +9,7 @@ import torch
 import torchvision
 import torch.utils.tensorboard
 import torch.utils.data
-from models import SimpleConvolutionalAE
+from models import SimpleConvolutionalAE, VerySimpleConvolutionalAE
 
 
 def train(args: argparse.Namespace):
@@ -21,7 +21,12 @@ def train(args: argparse.Namespace):
 
     device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = SimpleConvolutionalAE(img_dim=args.img_size, bottleneck_dim=args.bottleneck_dim)
+    model = SimpleConvolutionalAE(
+        img_dim=args.img_size,
+        bottleneck_dim=args.bottleneck_dim,
+        dropout=args.dropout,
+        bottleneck_dropout=args.bottleneck_dropout
+    )
     model.to(device)
     print(model)
 
@@ -107,8 +112,10 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=1e-2, help="Smalles hidden dimension of the autoencoder")
     parser.add_argument("--batch_size", type=int, default=50, help="Batch Size")
     parser.add_argument("--image_summary_interval", type=int, default=10, help="Write image summaries every N steps")
-    parser.add_argument("--model_save_interval", type=int, default=1000, help="Save the model weights every N steps")
+    parser.add_argument("--model_save_interval", type=int, default=100, help="Save the model weights every N steps")
     parser.add_argument("--continue_training", action="store_true", help="Continue training with the most recent checkpoint")
+    parser.add_argument("--dropout", type=float, default=0.2, help="Dropout for everything except the latent representation")
+    parser.add_argument("--bottleneck_dropout", type=float, default=0.0, help="Dropout for the latent representation")
     args = parser.parse_args()
 
     if args.action == "train":
