@@ -19,7 +19,7 @@ def train(args: argparse.Namespace):
     checkpoints_dir = args.working_dir / "train" / "checkpoints"
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
-    device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = SimpleConvolutionalAE(
         img_dim=args.img_size,
@@ -57,6 +57,7 @@ def train(args: argparse.Namespace):
         for epoch in range(args.num_epochs):
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle=True)
             for local_step, (data, target) in enumerate(train_loader):
+                data = data.to(device)
                 global_step += 1
 
                 optimizer.zero_grad()
