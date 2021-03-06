@@ -81,6 +81,11 @@ def train(args: argparse.Namespace):
                 summary_writer.add_scalar("Output Batch Statistics/Avg Value", torch.mean(output), global_step)
                 summary_writer.add_scalar("Output Batch Statistics/Std Dev", torch.std(output), global_step)
 
+                for i, g in enumerate(optimizer.param_groups):
+                    summary_writer.add_scalar(f"learning Rate/param_group_{i}", g["lr"], global_step)
+
+                model.weight_summary(summary_writer, global_step)
+
                 if global_step % args.image_summary_interval == 0:
                     print("Logging images ...")
                     batch_sources_image_grid = torchvision.utils.make_grid(data)
