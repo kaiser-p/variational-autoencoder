@@ -60,6 +60,8 @@ def train(args: argparse.Namespace):
                 data = data.to(device)
                 global_step += 1
 
+                data = torch.max(torch.zeros_like(data), torch.min(torch.ones_like(data), data - torch.rand_like(data) * 0.2))
+
                 optimizer.zero_grad()
                 output, code = model.forward(data)
                 loss = reconstruction_loss_function(output, data)
