@@ -53,7 +53,6 @@ def train(args: argparse.Namespace):
 
     print("Starting training ...")
     with torch.utils.tensorboard.SummaryWriter(log_dir=logs_dir, flush_secs=15) as summary_writer:
-        global_step = 0
         for epoch in range(args.num_epochs):
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle=True)
             for local_step, (data, target) in enumerate(train_loader):
